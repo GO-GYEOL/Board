@@ -35,11 +35,15 @@
       <ul class="list-group">
         <% for (var i = 0; i < posts.length; i++){ %>
         <li class="list-group-item" data-id="<%=posts[i]._id%>">
-          <h4>할일 제목 : <%= posts[i].title %></h4>
-          <p>할일 마감날짜 : <%= posts[i].date %></p>
+          <p>글 번호 : <%=posts[i]._id%></p>
+          <h4>글 제목 : <%= posts[i].title %></h4>
+          <p>날짜 : <%= posts[i].date %></p>
           <button class="deleteBtn" data-id="<%=posts[i]._id%>">삭제</button>
           <button class="detailBtn" data-id="<%=posts[i]._id%>">
             자세히 보기
+          </button>
+          <button class="chatBtn" data-writer="<%=posts[i].writer%>">
+            1:1 채팅 신청하기
           </button>
         </li>
         <% } %>
@@ -53,24 +57,40 @@
           method: "DELETE",
           url: "/delete",
           data: { _id: e.target.dataset.id },
-        }).done((result) => {
-          // e.target.parentElement.remove();
-          $(this).parent("li").fadeOut();
-        }).fail(()=>{
-            console.log("권한이 없습니다")
-        });
+        })
+          .done((result) => {
+
+            $(this).parent("li").fadeOut();
+          })
+          .fail(() => {
+            console.log("권한이 없습니다");
+          });
       });
-      const post = document.querySelector(".detailBtn");
-      post.onclick = function (e) {
-        location.href = "/detail/" + e.target.dataset.id;
-      };
+
+      const detailBtns = document.querySelectorAll(".detailBtn");
+      detailBtns.forEach(
+        (detailBtn) =>
+          (detailBtn.onclick = (e) => {
+            console.log(e);
+            location.href = "/detail/" + e.target.dataset.id;
+          })
+      );
+
 
       const searchBtn = document.querySelector("#search");
       searchBtn.onclick = () => {
         const search = document.querySelector("#search-input").value;
-        window.location.href = "/search?value=" + search; // 쿼리스트링 전달
+        window.location.href = "/search?value=" + search;
       };
-      
+
+      $(".chatBtn").click(function (e) {
+        window.location.href = "/chat";
+        $.ajax({
+          method: "POST",
+          url: "/chat",
+          data: { writer: e.target.dataset.writer },
+        });
+      });
     </script>
 
     <!-- Optional JavaScript -->

@@ -5,8 +5,10 @@ app.use(express.urlencoded({ extended: true })); // bodyparser
 
 const MongoClient = require("mongodb").MongoClient;
 
+// ejs사용
 app.set("view engine", "ejs");
 
+// form으로 post요청하려고 사용했다.
 const methodOverride = require("method-override");
 app.use(methodOverride("_method"));
 
@@ -16,6 +18,7 @@ const passport = require("passport");
 
 const LocalStrategy = require("passport-local").Strategy;
 const session = require("express-session");
+
 app.use(
   session({ secret: "secret-key", resave: true, saveUninitialized: false })
 );
@@ -24,6 +27,8 @@ app.use(passport.session());
 
 //dotenv
 require("dotenv").config();
+
+app.use("/public", express.static("public"));
 
 let db;
 MongoClient.connect(
@@ -68,7 +73,7 @@ app.post("/newpost", function (req, res) {
             function (err, result) {
               if (err) return console.log(err);
               console.log("count+1됨");
-              console.log(req.user._id)
+              console.log(req.user._id);
               res.send(
                 "이거 안해주면 페이지 멈춤. 싫으면 리다이렉트 이런것도 가능"
               );
@@ -84,7 +89,6 @@ app.get("/list", function (req, res) {
   db.collection("post")
     .find()
     .toArray(function (error, result) {
-      console.log(result);
       res.render("list.ejs", { posts: result });
     });
 });
@@ -117,9 +121,9 @@ app.get("/edit/:id", function (req, res) {
   );
 });
 
-app.put("/edit", function (req, res) {
+app.put("/edit", isLoggedIn, function (req, res) {
   db.collection("post").updateOne(
-    { _id: parseInt(req.body.id) },
+    { _id: parseInt(req.body.id), writer: req.user._id },
     {
       $set: {
         title: req.body.title,
@@ -127,7 +131,8 @@ app.put("/edit", function (req, res) {
         date: req.body.date,
       },
     },
-    function (error, result) {
+    function (err, result) {
+      if (result.modifiedCount === 0) console.log("권한 없어요");
       console.log(result);
       res.redirect("/list");
     }
@@ -214,5 +219,59 @@ app.get("/search", function (req, res) {
     .find({ title: { $regex: req.query.value } })
     .toArray(function (err, result) {
       console.log(result);
+    });
+});
+
+const { ObjectId } = require("mongodb");
+app.post("/chat", function (req, res) {
+  console.log(req.body);
+  db.collection("chat").insertOne({
+    member: [ObjectId(req.body.writer), req.user._id],
+    date: new Date(),
+    title: new Date() + "채팅방",
+  });
+});
+
+app.get("/chat", isLoggedIn, function (req, res) {
+  db.collection("chat")
+    .find({ member: { $in: [req.user._id] } })
+    .toArray(function (err, result) {
+      console.log(result);
+      res.render("chat.ejs", { chatroom: result });
+    });
+});
+
+app.post("/message", function (req, res) {
+  db.collection("message").insertOne(
+    {
+      parent: req.body.parent,
+      content: req.body.content,
+      date: new Date(),
+      userid: req.user._id,
+    },
+    function (err, result) {}
+  );
+});
+app.get("/message/:id", isLoggedIn, function (req, res) {
+  res.writeHead(200, {
+    Connection: "keep-alive",
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+  });
+
+  db.collection("message")
+    .find({ parent: req.params.id })
+    .toArray(function (err, result) {
+      res.write("event: test\n");
+      res.write(`data: ${JSON.stringify(result)}\n\n`);
+
+      const pipeline = [{ $match: { "fullDocument.parent": req.params.id } }];
+      const collection = db.collection("message");
+      const changeStream = collection.watch(pipeline);
+      changeStream.on("change", (result) => {
+        console.log(result.fullDocument);
+        res.write("event: test\n");
+        res.write(`data: ${JSON.stringify([result.fullDocument])}\n\n`);
+      });
     });
 });
