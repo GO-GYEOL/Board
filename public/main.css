@@ -5,22 +5,47 @@
     height: 450px;
     overflow-y: scroll;
     padding: 10px;
+    display:flex;
+    flex-direction: column;
   }
   .chat-content li {
     margin-top: 10px;
     list-style: none;
   }
+  .list-group-item:hover{
+    background-color:gray;
+  }
+  .list-group-item:hover > .text-small{
+    color:white;
+  }
+  .list-group-item.active{
+    background-color:lightgray;
+    color:inherit;
+    border: 0px;
+  } 
+  
   .text-small {
     font-size: 12px;
     color: gray;
     margin-bottom: 0;
   }
+
   .chat-box {
     background: #eee;
     padding: 5px;
     border-radius: 5px;
-    float: left;
+    /* float: left; */
   }
-  .mine {
-    float: right;
-  } 
+
+  .mychat{
+    align-self: start;
+  }
+  .mychat > span{
+    background-color:#8c7ae6;
+  }
+
+  .notmychat{
+    align-self:end;
+  }
+
+  /* 채팅방 들어가서 채팅방 클릭해야지 채팅창 뜨도록 하자. 그전까진 display none으로 하고. 그리고 클릭하면 채팅장 테두리 생기도록. 이거하면 끝임. */

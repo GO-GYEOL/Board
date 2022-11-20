@@ -1,6 +1,5 @@
 const express = require("express");
 const app = express();
-
 app.use(express.urlencoded({ extended: true })); // bodyparser
 
 const MongoClient = require("mongodb").MongoClient;
@@ -18,7 +17,6 @@ const passport = require("passport");
 
 const LocalStrategy = require("passport-local").Strategy;
 const session = require("express-session");
-
 app.use(
   session({ secret: "secret-key", resave: true, saveUninitialized: false })
 );
@@ -64,7 +62,8 @@ app.post("/newpost", function (req, res) {
           title: req.body.title,
           content: req.body.content,
           date: req.body.date,
-          writer: req.user._id,
+          writerId: req.user._id,
+          writerName: req.user.id,
         },
         function (error, result) {
           db.collection("counter").updateOne(
@@ -74,6 +73,7 @@ app.post("/newpost", function (req, res) {
               if (err) return console.log(err);
               console.log("count+1됨");
               console.log(req.user._id);
+              console.log(req.user.id);
               res.send(
                 "이거 안해주면 페이지 멈춤. 싫으면 리다이렉트 이런것도 가능"
               );
@@ -215,6 +215,7 @@ app.post("/register", function (req, res) {
 });
 
 app.get("/search", function (req, res) {
+    console.log(req.query);
   db.collection("post")
     .find({ title: { $regex: req.query.value } })
     .toArray(function (err, result) {
@@ -223,20 +224,38 @@ app.get("/search", function (req, res) {
 });
 
 const { ObjectId } = require("mongodb");
+
 app.post("/chat", function (req, res) {
-  console.log(req.body);
-  db.collection("chat").insertOne({
-    member: [ObjectId(req.body.writer), req.user._id],
-    date: new Date(),
-    title: new Date() + "채팅방",
-  });
+  if (req.body.writerId == req.user._id) {
+    res.sendStatus(400);
+    console.log("자기 자신과 대화할 수 없습니다");
+    return;
+  }
+
+  // 중복확인
+  db.collection("chat").findOne(
+    { memberId: { $eq: [ObjectId(req.body.writerId), req.user._id] } },
+    function (err, result) {
+      if (result) {
+        console.log(result);
+        console.log('중복인데요')
+        return;
+      } else {
+        db.collection("chat").insertOne({
+          memberId: [ObjectId(req.body.writerId), req.user._id],
+          memberName: [req.body.writerName, req.user.id],
+          date: new Date(),
+          title: new Date() + "채팅방",
+        });
+      }
+    }
+  );
 });
 
 app.get("/chat", isLoggedIn, function (req, res) {
   db.collection("chat")
-    .find({ member: { $in: [req.user._id] } })
+    .find({ memberId: { $in: [req.user._id] } })
     .toArray(function (err, result) {
-      console.log(result);
       res.render("chat.ejs", { chatroom: result });
     });
 });
@@ -249,9 +268,11 @@ app.post("/message", function (req, res) {
       date: new Date(),
       userid: req.user._id,
     },
-    function (err, result) {}
+    function (err, result) {
+    }
   );
 });
+
 app.get("/message/:id", isLoggedIn, function (req, res) {
   res.writeHead(200, {
     Connection: "keep-alive",
@@ -262,16 +283,16 @@ app.get("/message/:id", isLoggedIn, function (req, res) {
   db.collection("message")
     .find({ parent: req.params.id })
     .toArray(function (err, result) {
-      res.write("event: test\n");
-      res.write(`data: ${JSON.stringify(result)}\n\n`);
-
-      const pipeline = [{ $match: { "fullDocument.parent": req.params.id } }];
-      const collection = db.collection("message");
+      const data = [...result, {loginUser : req.user._id}]
+      res.write("event: test\n"); 
+      res.write(`data: ${JSON.stringify(data)}\n\n`); 
+      const pipeline = [{ $match: { "fullDocument.parent": req.params.id } }]; 
+      const collection = db.collection("message"); 
       const changeStream = collection.watch(pipeline);
       changeStream.on("change", (result) => {
         console.log(result.fullDocument);
         res.write("event: test\n");
-        res.write(`data: ${JSON.stringify([result.fullDocument])}\n\n`);
+        res.write(`data: ${JSON.stringify([result.fullDocument, { loginUser: req.user._id }])}\n\n`);
       });
     });
 });

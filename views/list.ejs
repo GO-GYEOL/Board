@@ -40,10 +40,15 @@
           <p>날짜 : <%= posts[i].date %></p>
           <button class="deleteBtn" data-id="<%=posts[i]._id%>">삭제</button>
           <button class="detailBtn" data-id="<%=posts[i]._id%>">
+            <!-- onclick="location.href='/detail/<%=posts[i]._id%>'" -->
             자세히 보기
           </button>
-          <button class="chatBtn" data-writer="<%=posts[i].writer%>">
-            1:1 채팅 신청하기
+          <button
+            class="chatBtn"
+            data-writerName="<%=posts[i].writerName%>"
+            data-writerId="<%=posts[i].writerId%>"
+          >
+            <%=posts[i].writerName%>에게 1:1 채팅 신청하기
           </button>
         </li>
         <% } %>
@@ -59,14 +64,15 @@
           data: { _id: e.target.dataset.id },
         })
           .done((result) => {
-
+            // e.target.parentElement.remove();
             $(this).parent("li").fadeOut();
           })
           .fail(() => {
+            window.alert("권한이 없습니다");
             console.log("권한이 없습니다");
           });
       });
-
+      // 바닐라JS를 사용하려면 document.querySelectorAll을 사용해야한다. queryselector는 맨 위 child만 선택한다. 자식요소중 첫번째.
       const detailBtns = document.querySelectorAll(".detailBtn");
       detailBtns.forEach(
         (detailBtn) =>
@@ -76,11 +82,11 @@
           })
       );
 
-
+      // 검색버튼
       const searchBtn = document.querySelector("#search");
       searchBtn.onclick = () => {
         const search = document.querySelector("#search-input").value;
-        window.location.href = "/search?value=" + search;
+        location.href = "/search?value=" + search; // 쿼리스트링 전달
       };
 
       $(".chatBtn").click(function (e) {
@@ -88,7 +94,12 @@
         $.ajax({
           method: "POST",
           url: "/chat",
-          data: { writer: e.target.dataset.writer },
+          data: {
+            writerName: e.target.dataset.writername,
+            writerId: e.target.dataset.writerid,
+          },
+        }).fail(() => {
+          window.alert("자기 자신과 대화할 수 없습니다. \n채팅방으로 이동합니다.");
         });
       });
     </script>
